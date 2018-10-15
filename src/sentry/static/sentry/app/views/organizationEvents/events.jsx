@@ -3,11 +3,13 @@ import React from 'react';
 import styled from 'react-emotion';
 
 import {Panel, PanelBody, PanelHeader} from 'app/components/panels';
+import {defined} from 'app/utils';
 import {t} from 'app/locale';
 import AreaChart from 'app/components/charts/areaChart';
 import AsyncView from 'app/views/asyncView';
 import DataZoom from 'app/components/charts/components/dataZoom';
 import DateTime from 'app/components/dateTime';
+import EmptyStateWarning from 'app/components/emptyStateWarning';
 import EventsContext from 'app/views/organizationEvents/eventsContext';
 import HealthPanelChart from 'app/views/organizationHealth/styles/healthPanelChart';
 import HealthRequest from 'app/views/organizationHealth/util/healthRequest';
@@ -38,7 +40,21 @@ class OrganizationEvents extends AsyncView {
     const {organization, location} = this.props;
 
     return [
-      ['events', `/organizations/${organization.slug}/events/`, {query: location.query}],
+      [
+        'events',
+        `/organizations/${organization.slug}/events/`,
+        {
+          query: Object.entries(location.query)
+            .filter(([key, value]) => defined(value))
+            .reduce(
+              (acc, [key, value]) => ({
+                ...acc,
+                [key]: value,
+              }),
+              {}
+            ),
+        },
+      ],
     ];
   }
 
@@ -55,6 +71,7 @@ class OrganizationEvents extends AsyncView {
   renderBody() {
     const {organization} = this.props;
     const {events, eventsPageLinks} = this.state;
+    const hasEvents = events && !!events.length;
 
     // TODO(billy): Should health endpoint be deprecated? If not, needs support for
     // absolute dates
@@ -138,35 +155,38 @@ class OrganizationEvents extends AsyncView {
           </PanelHeader>
 
           <Wrapper>
-            <Table>
-              <tbody>
-                {events.map((event, eventIdx) => {
-                  const project = this.projectsMap.get(event.projectID);
-                  return (
-                    <tr key={event.eventID}>
-                      <Td>
-                        <Link to={`/${organization.slug}/${project.slug}/`}>
-                          <Tooltip title={project.slug}>
-                            <IdBadge project={project} hideName />
-                          </Tooltip>
-                        </Link>
-                      </Td>
+            {!hasEvents && <EmptyStateWarning>No events</EmptyStateWarning>}
+            {hasEvents && (
+              <Table>
+                <tbody>
+                  {events.map((event, eventIdx) => {
+                    const project = this.projectsMap.get(event.projectID);
+                    return (
+                      <tr key={event.eventID}>
+                        <Td>
+                          <Link to={`/${organization.slug}/${project.slug}/`}>
+                            <Tooltip title={project.slug}>
+                              <IdBadge project={project} hideName />
+                            </Tooltip>
+                          </Link>
+                        </Td>
 
-                      <Td>
-                        <EventTitle>{this.getEventTitle(event)}</EventTitle>
-                      </Td>
+                        <Td>
+                          <EventTitle>{this.getEventTitle(event)}</EventTitle>
+                        </Td>
 
-                      <Td>
-                        <IdBadge user={event.user} hideEmail />
-                        <DateRow>
-                          <DateTime date={new Date(event.dateCreated)} />
-                        </DateRow>
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
+                        <Td>
+                          <IdBadge user={event.user} hideEmail />
+                          <DateRow>
+                            <DateTime date={new Date(event.dateCreated)} />
+                          </DateRow>
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </Table>
+            )}
           </Wrapper>
         </Panel>
 

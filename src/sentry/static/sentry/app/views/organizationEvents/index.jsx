@@ -62,8 +62,8 @@ class OrganizationEventsContainer extends React.Component {
     this.updateParams({environments});
   };
 
-  handleChangeTime = period => {
-    this.updateParams({period});
+  handleChangeTime = ({start, end, relative}) => {
+    this.updateParams({start, end, statsPeriod: relative});
   };
 
   render() {
