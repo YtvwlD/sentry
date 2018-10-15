@@ -3,11 +3,18 @@ import React from 'react';
 import styled from 'react-emotion';
 
 import {Panel, PanelBody, PanelHeader} from 'app/components/panels';
+import {t} from 'app/locale';
+import AreaChart from 'app/components/charts/areaChart';
 import AsyncView from 'app/views/asyncView';
+import DataZoom from 'app/components/charts/components/dataZoom';
 import DateTime from 'app/components/dateTime';
+import EventsContext from 'app/views/organizationEvents/eventsContext';
+import HealthPanelChart from 'app/views/organizationHealth/styles/healthPanelChart';
+import HealthRequest from 'app/views/organizationHealth/util/healthRequest';
 import IdBadge from 'app/components/idBadge';
 import Pagination from 'app/components/pagination';
 import SentryTypes from 'app/sentryTypes';
+import ToolBox from 'app/components/charts/components/toolBox';
 import Tooltip from 'app/components/tooltip';
 import withOrganization from 'app/utils/withOrganization';
 
@@ -28,7 +35,11 @@ class OrganizationEvents extends AsyncView {
   }
 
   getEndpoints() {
-    return [['events', `/organizations/${this.props.organization.slug}/events/`]];
+    const {organization, location} = this.props;
+
+    return [
+      ['events', `/organizations/${organization.slug}/events/`, {query: location.query}],
+    ];
   }
 
   getEventTitle(event) {
@@ -44,13 +55,88 @@ class OrganizationEvents extends AsyncView {
   renderBody() {
     const {organization} = this.props;
     const {events, eventsPageLinks} = this.state;
+
+    // TODO(billy): Should health endpoint be deprecated? If not, needs support for
+    // absolute dates
     return (
       <React.Fragment>
+        <div>
+          <HealthRequest
+            tag="error.handled"
+            includeTimeseries
+            interval="1d"
+            showLoading
+            getCategory={value => (value ? t('Handled') : t('Crash'))}
+          >
+            {({timeseriesData, previousTimeseriesData}) => {
+              return (
+                <HealthPanelChart
+                  height={200}
+                  title={t('Errors')}
+                  series={timeseriesData}
+                  previousPeriod={previousTimeseriesData}
+                >
+                  {props => (
+                    <AreaChart
+                      isGroupedByDate
+                      {...props}
+                      dataZoom={DataZoom()}
+                      toolBox={ToolBox(
+                        {},
+                        {
+                          dataZoom: {},
+                          restore: {},
+                        }
+                      )}
+                      onEvents={{
+                        datazoom: (evt, chart) => {
+                          const model = chart.getModel();
+                          const {xAxis, series} = model.option;
+                          const axis = xAxis[0];
+                          const [firstSeries] = series;
+
+                          const start = new Date(
+                            firstSeries.data[axis.rangeStart][0]
+                          ).toISOString();
+                          const end = new Date(
+                            firstSeries.data[axis.rangeEnd][0]
+                          ).toISOString();
+                          this.props.actions.updateParams({
+                            statsPeriod: null,
+                            start,
+                            end,
+                          });
+                        },
+                        click: series => {
+                          if (!series) {
+                            return;
+                          }
+
+                          const firstSeries = series;
+
+                          const date = new Date(firstSeries.name).toISOString();
+
+                          this.props.actions.updateParams({
+                            statsPeriod: null,
+                            start: date,
+                            end: date,
+                          });
+                        },
+                      }}
+                    />
+                  )}
+                </HealthPanelChart>
+              );
+            }}
+          </HealthRequest>
+        </div>
+
         <Panel>
           <PanelHeader hasButtons>
-            Events
+            {t('Events')}
             {this.renderSearchInput({})}
           </PanelHeader>
+
           <Wrapper>
             <Table>
               <tbody>
@@ -89,7 +175,18 @@ class OrganizationEvents extends AsyncView {
     );
   }
 }
-export default withOrganization(OrganizationEvents);
+
+class OrganizationEventsContainer extends React.Component {
+  render() {
+    return (
+      <EventsContext.Consumer>
+        {context => <OrganizationEvents {...context} {...this.props} />}
+      </EventsContext.Consumer>
+    );
+  }
+}
+export default withOrganization(OrganizationEventsContainer);
+export {OrganizationEvents};
 
 const Wrapper = styled(PanelBody)`
   overflow-x: scroll;

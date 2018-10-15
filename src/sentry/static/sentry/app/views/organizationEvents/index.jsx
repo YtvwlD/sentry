@@ -22,11 +22,14 @@ class OrganizationEventsContainer extends React.Component {
 
   static getDerivedStateFromProps(props, state) {
     const {query} = props.router.location;
+    const hasAbsolute = !!query.start && !!query.end;
 
     return {
       projects: query.projects || [],
       environments: query.environments || [],
-      period: query.period || '7d',
+      period: query.statsPeriod || hasAbsolute ? null : '7d',
+      start: query.start || null,
+      end: query.end || null,
     };
   }
 
@@ -64,9 +67,10 @@ class OrganizationEventsContainer extends React.Component {
   };
 
   render() {
-    let {organization, children} = this.props;
+    const {organization, children} = this.props;
+    const {start, end} = this.state;
 
-    let projects =
+    const projects =
       organization.projects && organization.projects.filter(({isMember}) => isMember);
 
     return (
@@ -88,9 +92,11 @@ class OrganizationEventsContainer extends React.Component {
               />
               <HeaderSeparator />
               <TimeRangeSelector
-                showAbsolute={false}
+                showAbsolute
                 showRelative
                 relative={this.state.period}
+                start={start}
+                end={end}
                 onChange={this.handleChangeTime}
               />
             </Header>
@@ -118,6 +124,8 @@ const Header = styled(Flex)`
 `;
 
 const Body = styled('div')`
+  display: flex;
+  flex-direction: column;
   flex: 1;
   padding: ${space(3)};
 `;
