@@ -4,7 +4,7 @@ import theme from 'app/utils/theme';
 
 export default function XAxis({isGroupedByDate, ...props} = {}) {
   const axisLabelFormatter = isGroupedByDate
-    ? (value, index) => moment(value).format('MMM Do')
+    ? (value, index) => moment.utc(value).format('MMM Do')
     : undefined;
 
   return {
