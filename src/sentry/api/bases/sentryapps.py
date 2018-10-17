@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from rest_framework.permissions import IsAuthenticated
 
-from sentry.api.base import Endpoint
+from sentry.api.base import Endpoint, SessionAuthentication
 from sentry.api.exceptions import ResourceDoesNotExist
 from sentry.api.permissions import ScopedPermission
 from sentry.app import raven
@@ -42,7 +42,7 @@ class SentryAppInstallationDetailsPermission(ScopedPermission):
 
 
 class SentryAppInstallationDetailsEndpoint(Endpoint):
-    authentication_classes = (IsAuthenticated, )
+    authentication_classes = (SessionAuthentication, )
     permission_classes = (SentryAppInstallationDetailsPermission, )
 
     def convert_args(self, request, uuid, *args, **kwargs):
